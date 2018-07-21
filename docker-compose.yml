@@ -1,0 +1,12 @@
+version: '3'
+services:
+
+  drl:
+    build: .
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    environment:
+      - DISPLAY
+    command: sleep infinity
+    # manually: 
+    # docker-compose exec drl bash

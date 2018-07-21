@@ -17,4 +17,10 @@ RUN \
 ENV PATH=$VENV/bin:$PATH
 WORKDIR $CODE_DIR/baselines
 
+RUN apt-get -y install vim
+#Used for atari environments:
+RUN apt-get -y install libglib2.0-0 libsm6 libxrender1
+#Used for cartpole environments:
+RUN apt-get -y install libglib2.0-0 python-opengl
+
 CMD /bin/bash

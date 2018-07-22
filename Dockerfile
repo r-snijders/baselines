@@ -30,5 +30,6 @@ RUN apt-get -y install vim
 COPY .vimrc /root
 
 WORKDIR /root
+RUN ln -s /root/code/baselines/baselines/deepq/experiments/custom_demo.py demo.py
 
 CMD /bin/bash

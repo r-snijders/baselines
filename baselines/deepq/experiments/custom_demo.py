@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import gym
 import itertools
 import numpy as np
@@ -16,6 +18,7 @@ from matplotlib import pyplot as plt
 from threading import Thread, Lock
 import logging
 import time
+import argparse
     
 
 def model(inpt, num_actions, scope, reuse=False):

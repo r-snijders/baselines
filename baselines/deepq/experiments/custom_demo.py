@@ -21,14 +21,6 @@ import time
 import argparse
     
 
-def model(inpt, num_actions, scope, reuse=False):
-    """This model takes as input an observation and returns values of all actions."""
-    with tf.variable_scope(scope, reuse=reuse):
-        out = inpt
-        out = layers.fully_connected(out, num_outputs=64, activation_fn=tf.nn.tanh)
-        out = layers.fully_connected(out, num_outputs=num_actions, activation_fn=None)
-        return out
-
 
 class DQN:
 
@@ -41,22 +33,30 @@ class DQN:
         self._clicked_x = None
         self._render_reward_threshold = 1000
 
+    def model(self, inpt, num_actions, scope, reuse=False):
+        """This model takes as input an observation and returns values of all actions."""
+        with tf.variable_scope(scope, reuse=reuse):
+            out = inpt
+            out = layers.fully_connected(out, num_outputs=self._args.hidden_layer_size, activation_fn=tf.nn.tanh)
+            out = layers.fully_connected(out, num_outputs=num_actions, activation_fn=None)
+            return out
+
     def learn(self):
 
         with U.make_session(8):
             # Create the environment
-            env = gym.make(args.env)
+            env = gym.make(self._args.env)
             # Create all the functions necessary to train the model
             act, train, update_target, debug = deepq.build_train(
                 make_obs_ph=lambda name: ObservationInput(env.observation_space, name=name),
-                q_func=model,
+                q_func=self.model,
                 num_actions=env.action_space.n,
-                optimizer=tf.train.AdamOptimizer(learning_rate=args.learning_rate),
+                optimizer=tf.train.AdamOptimizer(learning_rate=self._args.learning_rate),
             )
             # Create the replay buffer
-            replay_buffer = ReplayBuffer(args.replay_buffer_size)
+            replay_buffer = ReplayBuffer(self._args.replay_buffer_size)
             # Create the schedule for exploration starting from 1 till min_exploration_rate.
-            exploration = LinearSchedule(schedule_timesteps=args.exploration_duration, initial_p=1.0, final_p=args.min_exploration_rate)
+            exploration = LinearSchedule(schedule_timesteps=self._args.exploration_duration, initial_p=1.0, final_p=self._args.min_exploration_rate)
 
             # Initialize the parameters and copy them to the target network.
             U.initialize()
@@ -92,7 +92,7 @@ class DQN:
 
                 if done and len(episode_rewards) % 10 == 0:
                     self._reward_buffer_mutex.acquire()
-                    self._reward_buffer.append(np.mean(episode_rewards[-101:-1]))
+                    self._reward_buffer.append(mean_episode_reward)
 
                     logger.record_tabular("steps", t)
                     logger.record_tabular("episodes", len(episode_rewards))
@@ -112,7 +112,12 @@ class DQN:
     def plot(self, updated=True):
         plt.clf()
 
+        plt.xlabel("Episodes")
+        plt.ylabel("Mean Reward \n (over the last 100 episodes)")
+
         min_y, max_y = (-200, 200)
+        if self._args.env == "CartPole-v0":
+            min_y = 0.0
         if len(self._reward_buffer) > 0:
             data_min_y, data_max_y = min(self._reward_buffer), max(self._reward_buffer)
             if data_min_y < min_y:
@@ -120,7 +125,7 @@ class DQN:
             if data_max_y > max_y:
                 max_y = data_max_y 
         plt.ylim((min_y, max_y))
-        plt.plot(self._reward_buffer)
+        plt.plot([(r + 1) * 10 for r in list(range(len(self._reward_buffer)))], self._reward_buffer)
 
         if self._clicked_y is not None:
             plt.axhline(self._clicked_y, color='r')
@@ -151,11 +156,12 @@ class DQN:
 
 def main():
     parser = argparse.ArgumentParser(description="Modified version of custom_cartpol.py with visualization of mean episode rewards.")
-    parser.add_argument('--env', help='Gym environment ID (examples: "CartPole-v0", "LunarLander-v2", "Acrobot-v1")', default='CartPole-v0')
-    parser.add_argument('-er', dest="min_exploration_rate", type=float, default=0.05, help="Minimal exploration rate after exploration phase (default=0.05).")
-    parser.add_argument('-ed', dest="exploration_duration", type=int, default=5000, help="Exploration phase duration in timesteps (default=5000).")
-    parser.add_argument('-lr', dest="learning_rate", type=float, default=0.0003, help="Minimal exploration rate after exploration phase (default=0.0003).")
+    parser.add_argument('--env', help='Gym environment ID (examples: "CartPole-v0", "LunarLander-v2", "Acrobot-v1", "MountainCar-v0")', default='CartPole-v0')
+    parser.add_argument('-er', dest="min_exploration_rate", type=float, default=0.02, help="Minimal exploration rate after exploration phase (default=0.02).")
+    parser.add_argument('-ed', dest="exploration_duration", type=int, default=10000, help="Exploration phase duration in timesteps (default=10000).")
+    parser.add_argument('-lr', dest="learning_rate", type=float, default=0.0005, help="Minimal exploration rate after exploration phase (default=0.0005).")
     parser.add_argument('-rs', dest="replay_buffer_size", type=int, default=5000, help="Size of replay buffer (default=5000).")
+    parser.add_argument('-hl', dest="hidden_layer_size", type=int, default=64, help="Size of hidden layer of the MLP being used (default=64).")
     args = parser.parse_args()
 
     DQN(args).run()

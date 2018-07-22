@@ -42,27 +42,18 @@ class DQN:
 
         with U.make_session(8):
             # Create the environment
-            #env = gym.make("CartPole-v0")
-            env = gym.make("BipedalWalker-v2")
-
-            ##env = gym.make("CarRacing-v0")
-            #env = gym.make("MountainCar-v0")
-            env = gym.make("LunarLander-v2")
-            #env = gym.make("Acrobot-v1")
-            ##env = gym.make("Pendulum-v0")
-            #env = gym.make("Taxi-v2")
+            env = gym.make(args.env)
             # Create all the functions necessary to train the model
             act, train, update_target, debug = deepq.build_train(
                 make_obs_ph=lambda name: ObservationInput(env.observation_space, name=name),
                 q_func=model,
                 num_actions=env.action_space.n,
-                optimizer=tf.train.AdamOptimizer(learning_rate=5e-4),
+                optimizer=tf.train.AdamOptimizer(learning_rate=args.learning_rate),
             )
             # Create the replay buffer
-            replay_buffer = ReplayBuffer(50000)
-            # Create the schedule for exploration starting from 1 (every action is random) down to
-            # 0.02 (98% of actions are selected according to values predicted by the model).
-            exploration = LinearSchedule(schedule_timesteps=10000, initial_p=1.0, final_p=0.02)
+            replay_buffer = ReplayBuffer(args.replay_buffer_size)
+            # Create the schedule for exploration starting from 1 till min_exploration_rate.
+            exploration = LinearSchedule(schedule_timesteps=args.exploration_duration, initial_p=1.0, final_p=args.min_exploration_rate)
 
             # Initialize the parameters and copy them to the target network.
             U.initialize()
@@ -155,9 +146,19 @@ class DQN:
             self._reward_buffer_mutex.release()
             time.sleep(0.1)
 
+def main():
+    parser = argparse.ArgumentParser(description="Modified version of custom_cartpol.py with visualization of mean episode rewards.")
+    parser.add_argument('--env', help='Gym environment ID (examples: "CartPole-v0", "LunarLander-v2", "Acrobot-v1")', default='CartPole-v0')
+    parser.add_argument('-er', dest="min_exploration_rate", type=float, default=0.05, help="Minimal exploration rate after exploration phase (default=0.05).")
+    parser.add_argument('-ed', dest="exploration_duration", type=int, default=5000, help="Exploration phase duration in timesteps (default=5000).")
+    parser.add_argument('-lr', dest="learning_rate", type=float, default=0.0003, help="Minimal exploration rate after exploration phase (default=0.0003).")
+    parser.add_argument('-rs', dest="replay_buffer_size", type=int, default=5000, help="Size of replay buffer (default=5000).")
+    args = parser.parse_args()
+
+    DQN(args).run()
 
 if __name__ == "__main__":
-    DQN({}).run()
+    main()
 
 
 

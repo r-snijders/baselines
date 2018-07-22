@@ -29,4 +29,6 @@ RUN apt-get -y install python3-tk
 RUN apt-get -y install vim
 COPY .vimrc /root
 
+WORKDIR /root
+
 CMD /bin/bash
